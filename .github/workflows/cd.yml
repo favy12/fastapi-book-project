@@ -13,16 +13,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ✅ FIXED DOCKER SETUP TO AVOID CONFLICTS
+      # ✅ FIXED DOCKER SETUP (Corrected GPG Key Issue)
       - name: Set up Docker
         run: |
           sudo apt update
-          sudo apt remove -y containerd.io  # Remove conflicting package if present
+          sudo apt remove -y containerd.io || true  # Remove conflicts
           sudo apt install -y ca-certificates curl gnupg
-          sudo mkdir -p /etc/apt/keyrings
+          
+          # Add Docker GPG Key
+          sudo install -m 0755 -d /etc/apt/keyrings
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo tee /etc/apt/keyrings/docker.gpg > /dev/null
           sudo chmod a+r /etc/apt/keyrings/docker.gpg
+          
+          # Add Docker repository (Fixes 'NO_PUBKEY' issue)
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          
           sudo apt update
           sudo apt install -y docker-ce docker-ce-cli containerd.io
 
@@ -34,7 +39,6 @@ jobs:
           docker build -t favy12/fastapi-app .
           docker push favy12/fastapi-app
 
-      # ✅ ADD SSH TEST STEP BEFORE DEPLOYMENT
       - name: Test SSH Connection
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key
