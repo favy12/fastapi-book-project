@@ -13,24 +13,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ✅ FIXED DOCKER SETUP (Corrected GPG Key Issue)
+      # Updated Docker setup step with proper key handling
       - name: Set up Docker
         run: |
           sudo apt update
-          sudo apt install -y ca-certificates curl gnupg
+          sudo apt install -y ca-certificates curl gnupg lsb-release
 
-          # Add Docker GPG Key
-          sudo install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo tee /etc/apt/keyrings/docker.gpg > /dev/null
-          sudo chmod a+r /etc/apt/keyrings/docker.gpg
+          # Download and dearmor the Docker GPG key
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          sudo chmod a+r /usr/share/keyrings/docker-archive-keyring.gpg
 
-          # Force Ubuntu 24.04 (Noble) to use Ubuntu 22.04 (Jammy) Docker repository
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          # Force using Ubuntu 22.04 (Jammy) repository for Docker
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-          # Update package list and install Docker
           sudo apt update
           sudo apt install -y docker-ce docker-ce-cli containerd.io
-
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
@@ -45,6 +42,10 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key
           ssh -v -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection successful'"
           rm -f private_key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
 
       - name: Deploy to server
         run: |
@@ -56,3 +57,7 @@ jobs:
             docker run -d -p 8000:8000 --name fastapi-app favy12/fastapi-app:latest
           EOF
           rm -f private_key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
