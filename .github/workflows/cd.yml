@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -17,19 +17,20 @@ jobs:
       - name: Set up Docker
         run: |
           sudo apt update
-          sudo apt remove -y containerd.io || true  # Remove conflicts
           sudo apt install -y ca-certificates curl gnupg
-          
+
           # Add Docker GPG Key
           sudo install -m 0755 -d /etc/apt/keyrings
           curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo tee /etc/apt/keyrings/docker.gpg > /dev/null
           sudo chmod a+r /etc/apt/keyrings/docker.gpg
-          
-          # Add Docker repository (Fixes 'NO_PUBKEY' issue)
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          
+
+          # Force Ubuntu 24.04 (Noble) to use Ubuntu 22.04 (Jammy) Docker repository
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+          # Update package list and install Docker
           sudo apt update
           sudo apt install -y docker-ce docker-ce-cli containerd.io
+
 
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
